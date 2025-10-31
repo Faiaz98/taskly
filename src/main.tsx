@@ -4,6 +4,7 @@ import { configure } from '@airstate/client'
 import './index.css'
 import App from './App'
 
+console.log('AirState App ID:', import.meta.env.VITE_AIRSTATE_APP_ID)
 
 configure({
   appId: import.meta.env.VITE_AIRSTATE_APP_ID,
