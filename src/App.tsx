@@ -1,11 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { useTaskStore } from './store/taskStore';
 import { CategorySection } from './components/CategorySection';
 import { WorkspaceHeader } from './components/WorkspaceHeader';
 import { ConnectionStatus } from './components/ConnectionStatus';
-import { useSharedState } from '@airstate/react';
+import { PresenceBar } from './components/PresenceBar';
+import { useSharedState, useSharedPresence } from '@airstate/react';
 import { Task } from './types/task';
+import { UserPresence } from './types/presence';
 import { getOrCreateWorkspaceId, getInviteLink } from './utils/workspace';
+import { generateUserId, getUserName, setUserName } from './utils/user';
 
 // Initial tasks for the shared state
 const initialTasks: Task[] = [
@@ -50,10 +53,82 @@ function App() {
   const workspaceId = useMemo(() => getOrCreateWorkspaceId(), []);
   const inviteLink = useMemo(() => getInviteLink(), []);
   
+  // Generate user ID and name
+  const userId = useMemo(() => generateUserId(), []);
+  const [userName, setUserNameState] = useState(() => getUserName());
+  
+  // User presence state
+  const [userPresence, setUserPresence] = useState<UserPresence>({
+    name: userName,
+    status: 'active',
+    lastActivity: Date.now(),
+  });
+  
   // Use AirState's SharedState with workspace-specific channel
-  const [tasks, setTasks, { connected, synced }] = useSharedState<Task[]>(initialTasks, {
+  const [tasks, setTasks, { connected: tasksConnected, synced: tasksSynced }] = useSharedState<Task[]>(initialTasks, {
     channel: `family-tasks-${workspaceId}`,
   });
+
+  // Use AirState's SharedPresence for user presence
+  const { self, setState: setPresenceState, others, connected: presenceConnected, started: presenceStarted } = useSharedPresence<UserPresence>({
+    peerId: userId,
+    initialState: userPresence,
+    room: `family-presence-${workspaceId}`,
+  });
+
+  // Handle name change
+  const handleNameChange = (newName: string) => {
+    const result = setUserName(newName);
+    if (result.success) {
+      setUserNameState(newName);
+      
+      // Update presence state with new name
+      setPresenceState((prev) => ({
+        ...prev,
+        name: newName,
+      }));
+      
+      // Update local user presence state
+      setUserPresence((prev) => ({
+        ...prev,
+        name: newName,
+      }));
+    }
+  };
+
+  // Update activity timestamp periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPresenceState((prev) => ({
+        ...prev,
+        lastActivity: Date.now(),
+        status: 'active',
+      }));
+    }, 30000); // Update every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [setPresenceState]);
+
+  // Update presence on user activity
+  useEffect(() => {
+    const handleActivity = () => {
+      setPresenceState((prev) => ({
+        ...prev,
+        lastActivity: Date.now(),
+        status: 'active',
+      }));
+    };
+
+    window.addEventListener('mousemove', handleActivity);
+    window.addEventListener('keydown', handleActivity);
+    window.addEventListener('click', handleActivity);
+
+    return () => {
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      window.removeEventListener('click', handleActivity);
+    };
+  }, [setPresenceState]);
 
   const addTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
     setTasks((currentTasks) => [
@@ -81,6 +156,12 @@ function App() {
     setTasks((currentTasks) => currentTasks.filter((task) => task.id !== id));
   };
 
+  const connected = tasksConnected && presenceConnected;
+  const synced = tasksSynced && presenceStarted;
+
+  // Get current user presence from self.state or fallback to userPresence
+  const currentUserPresence = self.state || userPresence;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
@@ -91,9 +172,18 @@ function App() {
         />
 
         {/* Connection Status */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <ConnectionStatus connected={connected} synced={synced} />
         </div>
+
+        {/* Presence Bar with Name Editor */}
+        {synced && (
+          <PresenceBar 
+            currentUser={currentUserPresence}
+            others={others}
+            onNameChange={handleNameChange}
+          />
+        )}
 
         {/* Task Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5 mb-12">
