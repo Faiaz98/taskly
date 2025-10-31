@@ -1,6 +1,8 @@
 # Taskly - Real-Time Collaborative Task Manager
 
 Taskly is a modern, minimalist task management web app build with React, TypeScript, Vite and TailwindCSS, featuring real-time sync using AirState.
+Taskly isn’t just a static to-do app — it’s a dynamic real-time collaboration space powered by AirState.
+Each user automatically gets their own unique workspace channel, generated from the app URL.
 
 It's mainly designed to demonstrate how lightweight yet powerful frontend architechture can handle multi-device state sync seamlessly.
 
@@ -13,6 +15,27 @@ Taskly allows multiple users or sessions to view, update and manage shared tasks
 It leverages AirState for peer-to-peer style sync and Vite for ultra fast development builds.
 
 ---
+
+## How it Works
+
+- When someone visits the main app link (e.g. https://taskly-air.vercel.app),
+Taskly automatically creates a new unique workspace ID in the URL, such as:
+
+```bash
+https://taskly-liard-eight.vercel.app/?family=cool-crew-191
+```
+- That unique ID (family=cool-crew-191) represents the workspace channel on AirState.
+
+- Anyone who opens that exact link joins the same real-time workspace.
+They’ll instantly see the same tasks, updates, and state synced live.
+
+- If a new person opens the app without that link, they’ll get a brand new workspace with their own unique channel.
+
+### TL;DR
+
+> Each unique URL = a unique collaborative workspace.
+> Only people with that exact link can join and sync data in real time.
+> No backend, no login — just instant collaboration through shared state.
 
 ## Core Features
 
