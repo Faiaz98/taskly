@@ -6,7 +6,7 @@ import App from './App'
 
 
 configure({
-  appId: 'pk_airstate_nVVsF3Fm-OEO49Rankf0d',
+  appId: import.meta.env.VITE_AIRSTATE_APP_ID,
 })
 
 createRoot(document.getElementById('root')!).render(
