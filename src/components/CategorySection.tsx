@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Category } from '../types/task';
-import { useTaskStore } from '../store/taskStore';
+import { Category, Task } from '../types/task';
 import { TaskCard } from './TaskCard';
 import { Plus, ShoppingCart, Sparkles, Car, User } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
 
 interface CategorySectionProps {
   category: Category;
+  tasks: Task[];
+  onAddTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  onUpdateTask: (id: string, updates: Partial<Task>) => void;
+  onDeleteTask: (id: string) => void;
 }
 
 const iconMap: Record<string, React.ComponentType<any>> = {
@@ -16,17 +18,13 @@ const iconMap: Record<string, React.ComponentType<any>> = {
   User,
 };
 
-export function CategorySection({ category }: CategorySectionProps) {
+export function CategorySection({ category, tasks, onAddTask, onUpdateTask, onDeleteTask }: CategorySectionProps) {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [isAddingTask, setIsAddingTask] = useState(false);
-  const tasks = useTaskStore((state) =>
-    state.tasks.filter((task) => task.category === category.id)
-  );
-  const addTask = useTaskStore((state) => state.addTask);
 
   const handleAddTask = () => {
     if (newTaskTitle.trim()) {
-      addTask({
+      onAddTask({
         title: newTaskTitle.trim(),
         status: 'idle',
         category: category.id,
@@ -67,7 +65,12 @@ export function CategorySection({ category }: CategorySectionProps) {
 
       <div className="space-y-3">
         {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} />
+          <TaskCard 
+            key={task.id} 
+            task={task}
+            onUpdate={(updates) => onUpdateTask(task.id, updates)}
+            onDelete={() => onDeleteTask(task.id)}
+          />
         ))}
 
         {isAddingTask ? (

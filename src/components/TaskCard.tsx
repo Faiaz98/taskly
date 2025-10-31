@@ -1,9 +1,10 @@
 import { Task, TaskStatus } from '../types/task';
-import { useTaskStore } from '../store/taskStore';
 import { Circle, Clock, CheckCircle2, X } from 'lucide-react';
 
 interface TaskCardProps {
   task: Task;
+  onUpdate: (updates: Partial<Task>) => void;
+  onDelete: () => void;
 }
 
 const statusConfig: Record<TaskStatus, { 
@@ -36,9 +37,7 @@ const statusConfig: Record<TaskStatus, {
   },
 };
 
-export function TaskCard({ task }: TaskCardProps) {
-  const updateTask = useTaskStore((state) => state.updateTask);
-  const deleteTask = useTaskStore((state) => state.deleteTask);
+export function TaskCard({ task, onUpdate, onDelete }: TaskCardProps) {
   const config = statusConfig[task.status];
   const StatusIcon = config.icon;
 
@@ -46,7 +45,7 @@ export function TaskCard({ task }: TaskCardProps) {
     const statuses: TaskStatus[] = ['idle', 'in-progress', 'done'];
     const currentIndex = statuses.indexOf(task.status);
     const nextStatus = statuses[(currentIndex + 1) % statuses.length];
-    updateTask(task.id, { status: nextStatus });
+    onUpdate({ status: nextStatus });
   };
 
   return (
@@ -75,7 +74,7 @@ export function TaskCard({ task }: TaskCardProps) {
           </button>
         </div>
         <button
-          onClick={() => deleteTask(task.id)}
+          onClick={onDelete}
           className="opacity-0 group-hover:opacity-100 transition-all duration-200 text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg"
           aria-label="Delete task"
         >
