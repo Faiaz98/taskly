@@ -49,32 +49,63 @@ const initialTasks: Task[] = [
 function App() {
   const categories = useTaskStore((state) => state.categories);
   
-  // Get or create workspace ID from URL
+  // Get or create workspace ID from URL (stable across renders)
   const workspaceId = useMemo(() => getOrCreateWorkspaceId(), []);
   const inviteLink = useMemo(() => getInviteLink(), []);
   
-  // Generate user ID and name
+  // Generate user ID and name (stable across renders)
   const userId = useMemo(() => generateUserId(), []);
   const [userName, setUserNameState] = useState(() => getUserName());
   
-  // User presence state
-  const [userPresence, setUserPresence] = useState<UserPresence>({
+  // Memoize channel and room names to prevent reconnections
+  const tasksChannel = useMemo(() => `family-tasks-${workspaceId}`, [workspaceId]);
+  const presenceRoom = useMemo(() => `family-presence-${workspaceId}`, [workspaceId]);
+  
+  // Memoize initial user presence state
+  const initialUserPresence = useMemo<UserPresence>(() => ({
     name: userName,
     status: 'active',
     lastActivity: Date.now(),
-  });
+  }), [userName]);
   
-  // Use AirState's SharedState with workspace-specific channel
-  const [tasks, setTasks, { connected: tasksConnected, synced: tasksSynced }] = useSharedState<Task[]>(initialTasks, {
-    channel: `family-tasks-${workspaceId}`,
-  });
-
-  // Use AirState's SharedPresence for user presence
-  const { self, setState: setPresenceState, others, connected: presenceConnected, started: presenceStarted } = useSharedPresence<UserPresence>({
+  // User presence state
+  const [userPresence, setUserPresence] = useState<UserPresence>(initialUserPresence);
+  
+  // Memoize options objects to ensure stable references
+  const sharedStateOptions = useMemo(() => ({
+    channel: tasksChannel,
+  }), [tasksChannel]);
+  
+  const sharedPresenceOptions = useMemo(() => ({
     peerId: userId,
-    initialState: userPresence,
-    room: `family-presence-${workspaceId}`,
-  });
+    initialState: initialUserPresence,
+    room: presenceRoom,
+  }), [userId, initialUserPresence, presenceRoom]);
+  
+  // Use AirState's SharedState with stable options
+  const [tasks, setTasks, { connected: tasksConnected, synced: tasksSynced }] = useSharedState<Task[]>(
+    initialTasks,
+    sharedStateOptions
+  );
+
+  // Use AirState's SharedPresence with stable options
+  const { self, setState: setPresenceState, others, connected: presenceConnected, started: presenceStarted } = useSharedPresence<UserPresence>(
+    sharedPresenceOptions
+  );
+  
+  // Debug logging in development
+  useEffect(() => {
+    console.log('🔍 AirState Connection Status:', {
+      workspaceId,
+      tasksChannel,
+      presenceRoom,
+      userId,
+      tasksConnected,
+      tasksSynced,
+      presenceConnected,
+      presenceStarted,
+    });
+  }, [workspaceId, tasksChannel, presenceRoom, userId, tasksConnected, tasksSynced, presenceConnected, presenceStarted]);
 
   // Handle name change
   const handleNameChange = (newName: string) => {
