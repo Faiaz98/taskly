@@ -131,7 +131,10 @@ function App() {
   };
 
   // Update activity timestamp periodically
+  // FIXED: Remove setPresenceState from dependencies to prevent infinite loop
   useEffect(() => {
+    if (!presenceStarted) return; // Only run when presence is actually started
+    
     const interval = setInterval(() => {
       setPresenceState((prev) => ({
         ...prev,
@@ -141,14 +144,24 @@ function App() {
     }, 30000); // Update every 30 seconds
 
     return () => clearInterval(interval);
-  }, [setPresenceState]);
+  }, [presenceStarted]); // Only depend on presenceStarted, not setPresenceState
 
   // Update presence on user activity
+  // FIXED: Remove setPresenceState from dependencies and throttle activity updates
   useEffect(() => {
+    if (!presenceStarted) return; // Only run when presence is actually started
+    
+    let lastUpdate = 0;
+    const THROTTLE_MS = 5000; // Only update every 5 seconds max
+    
     const handleActivity = () => {
+      const now = Date.now();
+      if (now - lastUpdate < THROTTLE_MS) return; // Throttle updates
+      
+      lastUpdate = now;
       setPresenceState((prev) => ({
         ...prev,
-        lastActivity: Date.now(),
+        lastActivity: now,
         status: 'active',
       }));
     };
@@ -162,7 +175,7 @@ function App() {
       window.removeEventListener('keydown', handleActivity);
       window.removeEventListener('click', handleActivity);
     };
-  }, [setPresenceState]);
+  }, [presenceStarted]); // Only depend on presenceStarted, not setPresenceState
 
   const addTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
     setTasks((currentTasks) => [
