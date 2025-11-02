@@ -61,12 +61,15 @@ function App() {
   const tasksChannel = useMemo(() => `family-tasks-${workspaceId}`, [workspaceId]);
   const presenceRoom = useMemo(() => `family-presence-${workspaceId}`, [workspaceId]);
   
-  // Memoize initial user presence state
+  // CRITICAL: Create static timestamp outside of useMemo to prevent changing every render
+  const initialTimestamp = useMemo(() => Date.now(), []);
+  
+  // Memoize initial user presence state with STATIC timestamp
   const initialUserPresence = useMemo<UserPresence>(() => ({
     name: userName,
     status: 'active',
-    lastActivity: Date.now(),
-  }), [userName]);
+    lastActivity: initialTimestamp, // ✅ Static timestamp, won't change on re-renders
+  }), [userName, initialTimestamp]);
   
   // User presence state
   const [userPresence, setUserPresence] = useState<UserPresence>(initialUserPresence);
