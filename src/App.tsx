@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useState, useRef } from 'react';
 import { useTaskStore } from './store/taskStore';
 import { CategorySection } from './components/CategorySection';
 import { WorkspaceHeader } from './components/WorkspaceHeader';
@@ -49,51 +49,83 @@ const initialTasks: Task[] = [
 function App() {
   const categories = useTaskStore((state) => state.categories);
   
-  // Get or create workspace ID from URL (stable across renders)
-  const workspaceId = useMemo(() => getOrCreateWorkspaceId(), []);
-  const inviteLink = useMemo(() => getInviteLink(), []);
+  // Use refs for truly stable values that should never change
+  const workspaceIdRef = useRef<string>();
+  if (!workspaceIdRef.current) {
+    workspaceIdRef.current = getOrCreateWorkspaceId();
+  }
+  const workspaceId = workspaceIdRef.current;
   
-  // Generate user ID and name (stable across renders)
-  const userId = useMemo(() => generateUserId(), []);
+  const inviteLinkRef = useRef<string>();
+  if (!inviteLinkRef.current) {
+    inviteLinkRef.current = getInviteLink();
+  }
+  const inviteLink = inviteLinkRef.current;
+  
+  // Use refs for user ID (truly stable)
+  const userIdRef = useRef<string>();
+  if (!userIdRef.current) {
+    userIdRef.current = generateUserId();
+  }
+  const userId = userIdRef.current;
+  
   const [userName, setUserNameState] = useState(() => getUserName());
   
-  // Memoize channel and room names to prevent reconnections
-  const tasksChannel = useMemo(() => `family-tasks-${workspaceId}`, [workspaceId]);
-  const presenceRoom = useMemo(() => `family-presence-${workspaceId}`, [workspaceId]);
+  // Use refs for channel names (stable)
+  const tasksChannelRef = useRef<string>();
+  if (!tasksChannelRef.current) {
+    tasksChannelRef.current = `family-tasks-${workspaceId}`;
+  }
+  const tasksChannel = tasksChannelRef.current;
   
-  // CRITICAL: Create static timestamp outside of useMemo to prevent changing every render
-  const initialTimestamp = useMemo(() => Date.now(), []);
+  const presenceRoomRef = useRef<string>();
+  if (!presenceRoomRef.current) {
+    presenceRoomRef.current = `family-presence-${workspaceId}`;
+  }
+  const presenceRoom = presenceRoomRef.current;
   
-  // Memoize initial user presence state with STATIC timestamp
-  const initialUserPresence = useMemo<UserPresence>(() => ({
-    name: userName,
-    status: 'active',
-    lastActivity: initialTimestamp, // ✅ Static timestamp, won't change on re-renders
-  }), [userName, initialTimestamp]);
+  // Create initial presence state with ref for timestamp (stable)
+  const initialTimestampRef = useRef<number>();
+  if (!initialTimestampRef.current) {
+    initialTimestampRef.current = Date.now();
+  }
+  
+  const initialUserPresenceRef = useRef<UserPresence>();
+  if (!initialUserPresenceRef.current) {
+    initialUserPresenceRef.current = {
+      name: userName,
+      status: 'active',
+      lastActivity: initialTimestampRef.current,
+    };
+  }
   
   // User presence state
-  const [userPresence, setUserPresence] = useState<UserPresence>(initialUserPresence);
+  const [userPresence, setUserPresence] = useState<UserPresence>(() => initialUserPresenceRef.current!);
   
-  // Memoize options objects to ensure stable references
-  const sharedStateOptions = useMemo(() => ({
-    channel: tasksChannel,
-  }), [tasksChannel]);
+  // Create stable options objects using refs
+  const sharedStateOptionsRef = useRef<{ channel: string }>();
+  if (!sharedStateOptionsRef.current) {
+    sharedStateOptionsRef.current = { channel: tasksChannel };
+  }
   
-  const sharedPresenceOptions = useMemo(() => ({
-    peerId: userId,
-    initialState: initialUserPresence,
-    room: presenceRoom,
-  }), [userId, initialUserPresence, presenceRoom]);
+  const sharedPresenceOptionsRef = useRef<{ peerId: string; initialState: UserPresence; room: string }>();
+  if (!sharedPresenceOptionsRef.current) {
+    sharedPresenceOptionsRef.current = {
+      peerId: userId,
+      initialState: initialUserPresenceRef.current,
+      room: presenceRoom,
+    };
+  }
   
   // Use AirState's SharedState with stable options
   const [tasks, setTasks, { connected: tasksConnected, synced: tasksSynced }] = useSharedState<Task[]>(
     initialTasks,
-    sharedStateOptions
+    sharedStateOptionsRef.current
   );
 
   // Use AirState's SharedPresence with stable options
   const { self, setState: setPresenceState, others, connected: presenceConnected, started: presenceStarted } = useSharedPresence<UserPresence>(
-    sharedPresenceOptions
+    sharedPresenceOptionsRef.current
   );
   
   // Debug logging in development
