@@ -13,7 +13,7 @@ try {
   console.warn('App will continue but real-time features may not work')
 }
 createRoot(document.getElementById('root')!).render(
-  //<StrictMode>
+  <StrictMode>
     <App />
-  //</StrictMode>,
+  </StrictMode>,
 )
